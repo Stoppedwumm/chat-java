@@ -70,14 +70,48 @@ public class Server {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
 
+                String name = "Unknown"; // Default name if not set
+
+                boolean nextMessageIsHandshake = false;
+                boolean handshakeReceived = false;
+
+                broadcastMessage("Someone just connected!");
+                broadcastMessage("Waiting for an handshake message...");
+
                 // Read from the client until -1 is returned (connection closed) or error occurs
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     // Process the data received from the client
                     String receivedData = new String(buffer, 0, bytesRead);
-                    System.out.println("Received from " + clientSocket.getInetAddress().getHostAddress() + ": " + receivedData);
 
-                    // Echo the data back to ALL clients
-                    broadcastMessage(receivedData);
+                    if (receivedData.trim().isEmpty()) {
+                        // If the received data is empty, skip processing
+                        continue;
+                    }
+
+                    if (receivedData.equalsIgnoreCase("handshake")) {
+                        nextMessageIsHandshake = true;
+                        System.out.println("Handshake initiated by client: " + clientSocket.getInetAddress().getHostAddress());
+
+                        continue; // Skip further processing for this message
+                    }
+
+                    if (nextMessageIsHandshake && receivedData.startsWith("name ")) {
+                        // If the next message is a handshake, we can process it
+                        System.out.println("Handshake message received from client: " + clientSocket.getInetAddress().getHostAddress());
+                        name = receivedData.substring(5).trim(); // Extract the name after "name "
+                        System.out.println("Client name set to: " + name);
+                        nextMessageIsHandshake = false; // Reset the flag
+                        handshakeReceived = true; // Mark that handshake was received
+                        broadcastMessage("Client " + name + " has dabbed me up!");
+                        continue; // Skip further processing for this message
+                    }
+                    System.out.println("Received from "+ name + " (" + clientSocket.getInetAddress().getHostAddress() + ": " + receivedData);
+
+                    if (handshakeReceived) {
+                        broadcastMessage(name + ": " + receivedData);
+                    } else {
+                        clientSocket.getOutputStream().write("Please send a handshake message first.\n".getBytes());
+                    }
 
                     System.out.println("Processing client: " + clientSocket.getInetAddress().getHostAddress());
                 }
@@ -97,6 +131,7 @@ public class Server {
                 }
                 // IMPORTANT: Remove the client from the shared list
                 clientList.remove(clientSocket);
+                broadcastMessage("My guy just disconnected: " + clientSocket.getInetAddress().getHostAddress());
                 System.out.println("Client removed. Total clients: " + clientList.size());
             }
         }

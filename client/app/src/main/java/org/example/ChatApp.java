@@ -19,7 +19,7 @@ import org.apache.commons.cli.*; // Import necessary classes
 
 public class ChatApp {
     private static CoolTCPClient client;
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         Options options = new Options();
 
         String server = "localhost"; // Default server address
@@ -29,9 +29,13 @@ public class ChatApp {
         Option helpOption = new Option("h", "help", false, "Print this help message");
         Option serverOption = new Option("s", "server", true, "Server address (default: localhost)");
         Option portOption = new Option("p", "port", true, "Server port (default: 12345)");
+        Option nameOption = new Option("n", "name", true, "Your name (default: generated name)");
+        Option skipHandshakeOption = new Option("sh", "skip-handshake", false, "Skip the handshake process");
         options.addOption(serverOption);
         options.addOption(portOption);
         options.addOption(helpOption);
+        options.addOption(nameOption);
+        options.addOption(skipHandshakeOption);
         // Step 3: Create a parser
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null; // Object to hold the parsed command line
@@ -61,7 +65,12 @@ public class ChatApp {
             }
         }
         NameGenerator nameGenerator = new NameGenerator();
-        String name = nameGenerator.generateName();
+        String name;
+        if (cmd.hasOption("n")) {
+            name = cmd.getOptionValue("n");
+        } else {
+            name = nameGenerator.generateName();
+        }
         if (server != null && port != null) {
             try {
                 int portNumber = Integer.parseInt(port);
@@ -73,7 +82,14 @@ public class ChatApp {
         } else {
             client = new CoolTCPClient();
         }
-        client.SendMessage(name + " has joined the chat!");
+        if (cmd.hasOption("sh")) {
+            // do nothing, skip handshake
+        } else {
+            // do handshake
+            client.SendMessage("handshake");
+            Thread.sleep(1000); // Wait for the server to process the handshake
+            client.SendMessage("name " + name);
+        }
         JFrame frame = new JFrame("Chat Application");
         JPanel titlePanel = new JPanel();
         JPanel contentPanel = new JPanel();
@@ -100,7 +116,7 @@ public class ChatApp {
 
         inpTextField.addActionListener(e -> {
             String message = inpTextField.getText();
-            client.SendMessage(name + ": " + message);
+            client.SendMessage(message);
             inpTextField.setText("");
         });
         while (true) {

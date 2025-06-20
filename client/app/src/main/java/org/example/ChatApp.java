@@ -19,11 +19,13 @@ import org.apache.commons.cli.*; // Import necessary classes
 
 public class ChatApp {
     private static CoolTCPClient client;
+
     public static void main(String[] args) throws InterruptedException {
         Options options = new Options();
 
         String server = "localhost"; // Default server address
         String port = "12345"; // Default server port
+        Boolean isUsingKey = false; // Flag to check if a key is provided
 
         // Add a help option (-h or --help)
         Option helpOption = new Option("h", "help", false, "Print this help message");
@@ -31,11 +33,13 @@ public class ChatApp {
         Option portOption = new Option("p", "port", true, "Server port (default: 12345)");
         Option nameOption = new Option("n", "name", true, "Your name (default: generated name)");
         Option skipHandshakeOption = new Option("sh", "skip-handshake", false, "Skip the handshake process");
+        Option keyOption = new Option("k", "key", true, "Encryption key in Base64 format (optional)");
         options.addOption(serverOption);
         options.addOption(portOption);
         options.addOption(helpOption);
         options.addOption(nameOption);
         options.addOption(skipHandshakeOption);
+        options.addOption(keyOption);
         // Step 3: Create a parser
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = null; // Object to hold the parsed command line
@@ -63,6 +67,9 @@ public class ChatApp {
             if (cmd.hasOption("p")) {
                 port = cmd.getOptionValue("p");
             }
+            if (cmd.hasOption("k")) {
+                isUsingKey = true;
+            }
         }
         NameGenerator nameGenerator = new NameGenerator();
         String name;
@@ -78,6 +85,9 @@ public class ChatApp {
             } catch (NumberFormatException e) {
                 System.err.println("Invalid port number: " + port);
                 System.exit(1);
+            } catch (Exception e) {
+                System.err.println("Error connecting to server: " + e.getMessage());
+                System.exit(1);
             }
         } else {
             client = new CoolTCPClient();
@@ -85,10 +95,17 @@ public class ChatApp {
         if (cmd.hasOption("sh")) {
             // do nothing, skip handshake
         } else {
-            // do handshake
-            client.SendMessage("handshake");
-            Thread.sleep(1000); // Wait for the server to process the handshake
-            client.SendMessage("name " + name);
+            if (isUsingKey) {
+                // do handshake
+                client.SendMessage("handshake", cmd.getOptionValue("k").getBytes());
+                Thread.sleep(1000); // Wait for the server to process the handshake
+                client.SendMessage("name " + name, cmd.getOptionValue("k").getBytes());
+            } else {
+                // do handshake
+                client.SendMessage("handshake");
+                Thread.sleep(1000); // Wait for the server to process the handshake
+                client.SendMessage("name " + name);
+            }
         }
         JFrame frame = new JFrame("Chat Application");
         JPanel titlePanel = new JPanel();

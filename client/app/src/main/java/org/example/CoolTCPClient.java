@@ -1,6 +1,7 @@
 package org.example;
 
 import java.net.Socket;
+import ai.gemini.SimpleAeadService;
 
 public class CoolTCPClient {
     private String SERVER_ADDRESS = "localhost"; // Default server address
@@ -39,6 +40,21 @@ public class CoolTCPClient {
             }
         } catch (Exception e) {
             System.err.println("Error sending message: " + e.getMessage());
+        }
+    }
+    public void SendMessage(String message, byte[] key) {
+        try {
+            if (SOCKET != null && !SOCKET.isClosed()) {
+                SimpleAeadService aeadService = new SimpleAeadService(key);
+                byte[] encryptedMessage = aeadService.encrypt(message.getBytes());
+                SOCKET.getOutputStream().write(encryptedMessage);
+                SOCKET.getOutputStream().flush();
+                System.out.println("Encrypted message sent.");
+            } else {
+                System.err.println("Socket is not connected.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error sending encrypted message: " + e.getMessage());
         }
     }
     public void CloseConnection() {
